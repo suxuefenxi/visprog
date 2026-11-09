@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from functools import partial
+from html import escape
 
 # 保证能从仓库根目录导入 engine / prompts / vis_utils
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -23,11 +24,26 @@ def normalize(x):
     return ''
 
 
-def run_program(interpreter, prog, image):
+def run_program(interpreter, prog, image, inspect=False):
+    """执行程序，返回 (结果, html)；inspect=False 时 html 为空串。"""
     # 解释器每步都会 print，静音避免刷屏
     with contextlib.redirect_stdout(io.StringIO()):
+        if inspect:
+            result, _, html_str = interpreter.execute(prog, dict(IMAGE=image), inspect=True)
+            return result, html_str
         result, _ = interpreter.execute(prog, dict(IMAGE=image), inspect=False)
-    return result
+    return result, ''
+
+
+def save_html(path, rec, steps_html):
+    """在每步可视化前加上题目、标准答案、预测和程序，便于对照查看。"""
+    head = (
+        f"<h3>{escape(rec['question'])}</h3>"
+        f"<p>qid={rec['qid']} 标准答案: <b>{escape(rec['answer'])}</b> "
+        f"预测: <b>{escape(rec['pred'])}</b> {'正确' if rec['correct'] else '错误'}</p>"
+        f"<pre>{escape(rec['program'])}</pre>")
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(f'<meta charset="utf-8">{head}{steps_html}')
 
 
 def load_jsonl(path):
@@ -75,6 +91,8 @@ def main():
     ap.add_argument('--prompt-method', choices=['all', 'random'], default='all')
     ap.add_argument('--num-prompts', type=int, default=8, help='prompt-method=random 时的示例数')
     ap.add_argument('--max-retries', type=int, default=3, help='程序生成/执行失败时的重试次数')
+    ap.add_argument('--save-html', choices=['all', 'wrong', 'none'], default='all',
+                    help='保存每题的执行可视化 html：全部 / 仅答错 / 不保存')
     ap.add_argument('--eval-only', action='store_true', help='不推理，只重新统计已有结果')
     args = ap.parse_args()
 
@@ -97,6 +115,10 @@ def main():
     from engine.utils import ProgramInterpreter, ProgramGenerator
     from prompts.gqa import create_prompt
 
+    html_dir = os.path.join(out_dir, 'html')
+    if args.save_html != 'none':
+        os.makedirs(html_dir, exist_ok=True)
+
     interpreter = ProgramInterpreter(dataset='gqa')
     prompter = partial(create_prompt, method=args.prompt_method, num_prompts=args.num_prompts)
     generator = ProgramGenerator(prompter, temperature=args.temperature, model=args.model)
@@ -106,21 +128,26 @@ def main():
             image = Image.open(os.path.join(args.data, 'images', f"{q['image_id']}.jpg")).convert('RGB')
             image.thumbnail((640, 640), Image.Resampling.LANCZOS)
 
-            prog, pred, err = '', '', ''
+            prog, pred, err, steps_html = '', '', '', ''
             for attempt in range(1, args.max_retries + 1):
                 try:
                     prog, _ = generator.generate(dict(question=q['question']))
-                    pred = normalize(run_program(interpreter, prog, image))
+                    result, steps_html = run_program(
+                        interpreter, prog, image, inspect=args.save_html != 'none')
+                    pred = normalize(result)
                     err = ''
                     break
                 except Exception as e:
                     err = f'{type(e).__name__}: {e}'
-                    pred = ''
+                    pred, steps_html = '', ''
                     if attempt < args.max_retries:
                         time.sleep(1)
 
             rec = dict(q, pred=pred, correct=int(pred == q['answer']),
                        program=prog, error=err)
+            # 执行失败的题没有可视化内容，不保存
+            if steps_html and (args.save_html == 'all' or not rec['correct']):
+                save_html(os.path.join(html_dir, f"{q['qid']}.html"), rec, steps_html)
             fout.write(json.dumps(rec, ensure_ascii=False) + '\n')
             fout.flush()
             if i % 10 == 0 or i == len(todo):
