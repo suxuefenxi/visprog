@@ -17,7 +17,7 @@ BOX1=LOC(image=IMAGE,object='fence')
 ANSWER0=COUNT(box=BOX0)
 ANSWER1=COUNT(box=BOX1)
 ANSWER2=EVAL(expr="'yes' if {ANSWER0} + {ANSWER1} > 0 else 'no'")
-FINAL_RESULT=RESULT(var=ANSWER)
+FINAL_RESULT=RESULT(var=ANSWER2)
 """,
 """Question: Who is carrying the umbrella?
 Program:
@@ -47,7 +47,7 @@ ANSWER0=COUNT(box=BOX1)
 ANSWER1=EVAL(expr="'top' if {ANSWER0} > 0 else 'bottom'")
 FINAL_RESULT=RESULT(var=ANSWER1)
 """,
-"""Question: Question: Do you see bottles to the right of the wine on the left of the picture?
+"""Question: Do you see bottles to the right of the wine on the left of the picture?
 Program:
 BOX0=LOC(image=IMAGE,object='LEFT')
 IMAGE0=CROP(image=IMAGE,box=BOX0)
@@ -142,14 +142,14 @@ BOX1=LOC(image=IMAGE0,object='cat')
 ANSWER0=COUNT(box=BOX1)
 ANSWER1=EVAL(expr="'yes' if {ANSWER0} > 0 else 'no'")
 FINAL_RESULT=RESULT(var=ANSWER1)
-"""
+""",
 """Question: Is the cat above a mat?
 Program:
 BOX0=LOC(image=IMAGE,object='cat')
 IMAGE0=CROP_BELOW(image=IMAGE,box=BOX0)
 BOX1=LOC(image=IMAGE0,object='mat')
 ANSWER0=COUNT(box=BOX1)
-ANSWER1=EVAL(expr="'yes' if {ANSWER0} > 0 and else 'no'")
+ANSWER1=EVAL(expr="'yes' if {ANSWER0} > 0 else 'no'")
 FINAL_RESULT=RESULT(var=ANSWER1)
 """,
 """Question: Is the mat below a cat?
@@ -167,12 +167,19 @@ BOX0=LOC(image=IMAGE,object='cat')
 IMAGE0=CROP_BELOW(image=IMAGE,box=BOX0)
 BOX1=LOC(image=IMAGE0,object='mat')
 ANSWER0=COUNT(box=BOX1)
-ANSWER1=EVAL(expr="'yes' if {ANSWER0} > 0 and else 'no'")
+ANSWER1=EVAL(expr="'yes' if {ANSWER0} > 0 else 'no'")
 FINAL_RESULT=RESULT(var=ANSWER1)
 """,
 ]
 
 def create_prompt(inputs,num_prompts=8,method='random',seed=42,group=0):
+    """
+    构建 GQA 任务的上下文学习（In-Context Learning）Prompt
+    :param inputs: 包含当前问题信息的字典，例如 {'question': '...'}
+    :param num_prompts: 当 method='random' 时随机采样的示例数量
+    :param method: 示例选择策略：'all' 使用全部预置示例（共 20 个问答对），'random' 随机采样 num_prompts 个元素
+    :param seed: 随机种子
+    """
     if method=='all':
         prompt_examples = GQA_CURATED_EXAMPLES
     elif method=='random':

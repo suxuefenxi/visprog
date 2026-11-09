@@ -1028,7 +1028,7 @@ List:"""
 
     def __init__(self):
         print(f'Registering {self.step_name} step')
-        openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.client = openai.OpenAI()
 
     def parse(self,prog_step):
         parse_result = parse_step(prog_step.prog_str)
@@ -1040,9 +1040,9 @@ List:"""
         return text,list_max,output_var
 
     def get_list(self,text,list_max):
-        response = openai.Completion.create(
-            model="text-davinci-002",
-            prompt=self.prompt_template.format(list_max=list_max,text=text),
+        response = self.client.chat.completions.create(
+            model=os.getenv("OPENAI_MODEL","gpt-3.5-turbo"),
+            messages=[{"role":"user","content":self.prompt_template.format(list_max=list_max,text=text)}],
             temperature=0.7,
             max_tokens=256,
             top_p=0.5,
@@ -1051,7 +1051,7 @@ List:"""
             n=1,
         )
 
-        item_list = response.choices[0]['text'].lstrip('\n').rstrip('\n').split(', ')
+        item_list = response.choices[0].message.content.strip('\n').split(', ')
         return item_list
 
     def html(self,text,list_max,item_list,output_var):
