@@ -8,8 +8,12 @@ import io, tokenize
 from PIL import Image,ImageDraw,ImageFont,ImageFilter
 from transformers import (ViltProcessor, ViltForQuestionAnswering, 
     OwlViTProcessor, OwlViTForObjectDetection,
-    MaskFormerFeatureExtractor, MaskFormerForInstanceSegmentation,
     CLIPProcessor, CLIPModel, AutoProcessor, BlipForQuestionAnswering)
+# 新版 transformers 已移除 MaskFormerFeatureExtractor，仅 SEG 步骤（图像编辑）用到
+try:
+    from transformers import MaskFormerFeatureExtractor, MaskFormerForInstanceSegmentation
+except ImportError:
+    MaskFormerFeatureExtractor = MaskFormerForInstanceSegmentation = None
 
 # GQA 不需要以下依赖，缺失时仅 FACEDET / EMOJI / 图像编辑步骤不可用
 try:
