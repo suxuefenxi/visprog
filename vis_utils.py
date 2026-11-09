@@ -6,7 +6,7 @@ import math
 
 def image_formatter(img_path,size=224,vertical_align='middle'):
     img = Image.open(img_path)
-    img.thumbnail((size,size), Image.ANTIALIAS)
+    img.thumbnail((size,size), Image.LANCZOS)
     with BytesIO() as buffer:
         img.save(buffer, 'jpeg')
         base64_img = base64.b64encode(buffer.getvalue()).decode()
@@ -15,7 +15,7 @@ def image_formatter(img_path,size=224,vertical_align='middle'):
 
 def html_embed_image(img,size=100):
     img =  img.copy()
-    img.thumbnail((size,size), Image.ANTIALIAS)
+    img.thumbnail((size,size), Image.LANCZOS)
     with BytesIO() as buffer:
         img.save(buffer, 'jpeg')
         base64_img = base64.b64encode(buffer.getvalue()).decode()
