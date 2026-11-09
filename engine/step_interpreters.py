@@ -252,7 +252,10 @@ class LocInterpreter():
                     outputs[k] = v.to('cpu') if isinstance(v, torch.Tensor) else v
         
         target_sizes = torch.Tensor([img.size[::-1]])
-        results = self.processor.post_process_object_detection(outputs=outputs,threshold=self.thresh,target_sizes=target_sizes)
+        # 新版 transformers 中后处理方法移到了 image_processor 上
+        post_proc = getattr(self.processor, 'post_process_object_detection', None) \
+            or self.processor.image_processor.post_process_object_detection
+        results = post_proc(outputs=outputs,threshold=self.thresh,target_sizes=target_sizes)
         boxes, scores = results[0]["boxes"], results[0]["scores"]
         boxes = boxes.cpu().detach().numpy().tolist()
         scores = scores.cpu().detach().numpy().tolist()
