@@ -4,16 +4,27 @@ import torch
 import openai
 import functools
 import numpy as np
-import face_detection
 import io, tokenize
-from augly.utils.base_paths import EMOJI_DIR
-import augly.image as imaugs
 from PIL import Image,ImageDraw,ImageFont,ImageFilter
 from transformers import (ViltProcessor, ViltForQuestionAnswering, 
     OwlViTProcessor, OwlViTForObjectDetection,
     MaskFormerFeatureExtractor, MaskFormerForInstanceSegmentation,
     CLIPProcessor, CLIPModel, AutoProcessor, BlipForQuestionAnswering)
-from diffusers import StableDiffusionInpaintPipeline
+
+# GQA 不需要以下依赖，缺失时仅 FACEDET / EMOJI / 图像编辑步骤不可用
+try:
+    import face_detection
+except ImportError:
+    face_detection = None
+try:
+    from augly.utils.base_paths import EMOJI_DIR
+    import augly.image as imaugs
+except ImportError:
+    EMOJI_DIR = imaugs = None
+try:
+    from diffusers import StableDiffusionInpaintPipeline
+except ImportError:
+    StableDiffusionInpaintPipeline = None
 
 from .nms import nms
 from vis_utils import html_embed_image, html_colored_span, vis_masks
